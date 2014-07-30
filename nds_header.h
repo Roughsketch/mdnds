@@ -1,5 +1,5 @@
-#ifndef _MD__HEADER_H
-#define _MD__HEADER_H
+#ifndef _MD_NDS_HEADER_H
+#define _MD_NDS_HEADER_H
 
 #include <cstdint>
 #include <vector>

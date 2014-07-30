@@ -85,9 +85,8 @@ namespace util
     if (fp && (data.size() > 0))
     {
       fwrite(&data[0], sizeof(data[0]), count ? count : data.size(), fp);
+      fclose(fp);
     }
-
-    fclose(fp);
   }
 
   inline void append_file(std::string filename, std::vector<uint8_t>& data, uint32_t count = 0, uint32_t offset = 0)
@@ -112,9 +111,9 @@ namespace util
         char temp = 0;
         fwrite(&temp, 1, count - data.size(), fp);
       }
-    }
 
-    fclose(fp);
+      fclose(fp);
+    }
   }
 
   template <typename T> inline T read(std::vector<uint8_t>& data, uint32_t offset = 0)
@@ -184,7 +183,7 @@ namespace util
 
   inline std::string read(std::string& file, uint32_t offset, size_t size = 0)
   {
-    std::string ret;
+    std::string ret = "";
     uint32_t length = size;
 
     FILE *fp = fopen(file.c_str(), "rb");
