@@ -64,6 +64,12 @@ namespace util
     size_t size = ftell(fp);
     rewind(fp);
 
+    if (size == 0)
+    {
+      fclose(fp);
+      return std::vector<uint8_t>();
+    }
+
     if (count < size)
     {
       size = count;
@@ -303,6 +309,11 @@ namespace util
     }
   }
 
+  template<typename T> inline void push_int_big(std::vector<uint8_t>& v, T val)
+  {
+    push_int<T>(v, swap_endian<T>(val));
+  }
+
   template<typename T> inline void insert_int(std::vector<uint8_t>& v, T val, uint32_t offset = 0)
   {
     for (int i = 0; i < sizeof(T); i++)
@@ -311,14 +322,22 @@ namespace util
     }
   }
 
-  template<typename T> inline void push_int_big(std::vector<uint8_t>& v, T val)
-  {
-    push_int<T>(v, swap_endian<T>(val));
-  }
-
   template<typename T> inline void insert_int_big(std::vector<uint8_t>& v, T val, uint32_t offset = 0)
   {
     insert_int<T>(v, swap_endian<T>(val), offset);
+  }
+
+  template<typename T> inline void write_int(std::vector<uint8_t>& v, T val, uint32_t offset)
+  {
+    for (int i = 0; i < sizeof(T); i++)
+    {
+      v[offset + i] = (val & (0xFF << (i * 8))) >> (i * 8);
+    }
+  }
+
+  template<typename T> inline void write_int_big(std::vector<uint8_t>& v, T val, uint32_t offset)
+  {
+    write_int<T>(v, swap_endian<T>(val), offset);
   }
 
   inline void push(std::vector<uint8_t>& v, std::string val)
@@ -331,7 +350,16 @@ namespace util
 
   template<typename T> inline T pad(T val, uint32_t align)
   {
+    static_assert(std::is_integral<T>::value, "Value must be an integral type.");
     return (val % align == 0) ? 0 : align - (val % align);
+  }
+
+  inline void pad(std::vector<uint8_t>& v, uint32_t count, uint8_t val = 0)
+  {
+    for (uint32_t i = 0; i < count; i++)
+    {
+      v.push_back(val);
+    }
   }
 };
 
