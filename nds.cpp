@@ -53,7 +53,12 @@ namespace nds
 
   void build(std::string dir, std::string disc)
   {
+    std::string sysdir = dir + "/sys/";
+    std::string filedir = dir + "/files/";
 
+    Header header(util::read_file(sysdir + "header.bin", 0x200));
+
+    FST fst(filedir, 0);
   }
 
   void files(std::string disc)
@@ -126,9 +131,15 @@ namespace nds
       ret = false;
     }
 
-    if (fs::is_regular_file(root + "/sys/fst.bin") == false)
+    if (fs::is_regular_file(root + "/sys/fnt.bin") == false)
     {
-      std::cout << "Missing file " << root << "/sys/fst.bin" << std::endl;
+      std::cout << "Missing file " << root << "/sys/fnt.bin" << std::endl;
+      ret = false;
+    }
+
+    if (fs::is_regular_file(root + "/sys/fat.bin") == false)
+    {
+      std::cout << "Missing file " << root << "/sys/fat.bin" << std::endl;
       ret = false;
     }
 
