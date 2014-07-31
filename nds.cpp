@@ -56,9 +56,70 @@ namespace nds
     std::string sysdir = dir + "/sys/";
     std::string filedir = dir + "/files/";
 
-    Header header(util::read_file(sysdir + "header.bin", 0x200));
+    std::vector<uint8_t> nds(0x4000);
 
-    FST fst(filedir, 0);
+    std::vector<uint8_t> headerbin = util::read_file(sysdir + "header.bin", 0x200);
+    std::vector<uint8_t> arm9 = util::read_file(sysdir + "arm9.bin");
+    std::vector<uint8_t> arm9_overlay = util::read_file(sysdir + "arm9_overlay.bin");
+    std::vector<uint8_t> arm7 = util::read_file(sysdir + "arm7.bin");
+    std::vector<uint8_t> arm7_overlay = util::read_file(sysdir + "arm7_overlay.bin");
+
+    Header header(headerbin);
+
+    //  Add ARM9 bin
+    header.set_arm9_offset(0x4000);
+    std::copy(arm9.begin(), arm9.end(), std::back_inserter(nds));
+    util::pad(nds, util::pad(nds.size(), 0x10));
+
+    //  Add ARM9 overlay
+    header.set_arm9_overlay_offset(nds.size());
+    std::copy(arm9_overlay.begin(), arm9_overlay.end(), std::back_inserter(nds));
+    util::pad(nds, util::pad(nds.size(), 0x1000));  //  Pad to 0x1000 since ARM7 bin has to be on an even 0x1000 byte mark
+
+    //  Add ARM7 bin
+    header.set_arm7_offset(nds.size());
+    std::copy(arm7.begin(), arm7.end(), std::back_inserter(nds));
+    util::pad(nds, util::pad(nds.size(), 0x10));
+
+    //  Add ARM7 overlay
+    header.set_arm7_overlay_offset(nds.size());
+    std::copy(arm7_overlay.begin(), arm7_overlay.end(), std::back_inserter(nds));
+    util::pad(nds, util::pad(nds.size(), 0x10));
+
+    FST fst(filedir, nds.size());
+
+    std::vector<uint8_t> fnt = fst.get_fnt();
+    std::vector<uint8_t> fat = fst.get_fat();
+
+    //  Add FNT
+    header.set_fnt_offset(nds.size());
+    header.set_fnt_size(fnt.size());
+    std::copy(fnt.begin(), fnt.end(), std::back_inserter(nds));
+    util::pad(nds, util::pad(nds.size(), 0x10));
+
+    //  Add FAT
+    header.set_fat_offset(nds.size());
+    header.set_fat_size(fat.size());
+    std::copy(fat.begin(), fat.end(), std::back_inserter(nds));
+    //util::pad(nds, util::pad(nds.size(), 0x10));
+
+    //  Write all files to the disc
+    for (fs::recursive_directory_iterator dir(filedir), end; dir != end; ++dir)
+    {
+      if (fs::is_regular_file(dir->path()))
+      {
+        auto data = util::read_file(dir->path().string());
+        std::copy(data.begin(), data.end(), std::back_inserter(nds));
+      }
+    }
+
+    //  Write the header data
+    headerbin = header.get_raw();
+    std::copy(headerbin.begin(), headerbin.end(), nds.begin());
+
+    util::pad(nds, util::pad(nds.size(), header.capacity()), 0xFF);
+
+    util::write_file(disc, nds);
   }
 
   void files(std::string disc)

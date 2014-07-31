@@ -16,13 +16,18 @@ namespace nds
     uint32_t dir_index = 0;                           //  Current directory index
     uint32_t total = util::read<uint16_t>(m_fnt, 6);  //  Total entries
 
+    std::cout << "Storing main table entries" << std::endl;
+
     for (uint32_t i = 0; i < total; i++)
     {
       m_table_entries.push_back(TableEntry(util::subset(m_fnt, i * 8, 8)));
     }
 
+    std::cout << "Iterating main table entries" << std::endl;
     for (auto& entry : m_table_entries)
     {
+      std::cout << "dir_index: " << dir_index << std::endl;
+
       uint32_t file_id = entry.first_id();  //  The starting file id in this folder
       uint32_t subdirs = 0;                 //  The amount of sub directories in this folder
 
@@ -101,33 +106,94 @@ namespace nds
   */
   FST::FST(std::string root, uint32_t fst_offset)
   {
-
-    uint32_t dir_index = 1;     //  Start at 1 since 0 is root
-    uint32_t file_index = 0;    //  ID of the next file
-    uint32_t table_offset = 0;  //  Offset into the string table
-
-    //  Sub tables start after all main table entries which are 8 bytes each
-    uint32_t sub_table_offset = total_directories(root, true) * 8;
+    uint32_t dir_index = 1;
 
     for (fs::recursive_directory_iterator dir(root), end; dir != end; ++dir)
     {
       if (fs::is_directory(dir->path()))
       {
-        uint32_t parent_id = m_dir_parent[dir->path().parent_path()].parent();
-        m_dir_parent[dir->path()] = TableEntry(sub_table_offset + table_offset, file_index, dir_index);
-
+        m_dir_parent[dir->path()] = 0xF000 | dir_index;
         ++dir_index;
+      }
+    }
+
+    //file_id = 0x67;
+    m_fnt = create_main_table(root);
+    std::vector<uint8_t> string_table = create_string_table(root);
+
+    //  Append string table to the FNT
+    std::copy(string_table.begin(), string_table.end(), std::back_inserter(m_fnt));
+
+    util::write_file("fnt.bin", m_fnt);
+
+    //  Offset is FST offset + FNT size + FAT size (total files * size of FAT entry)
+    uint32_t file_offset = fst_offset + m_fnt.size() + (total_files(root, true) * 8);
+
+    for (fs::recursive_directory_iterator dir(root), end; dir != end; ++dir)
+    {
+      if (fs::is_regular_file(dir->path()))
+      {
+        util::push_int(m_fat, file_offset);
+        file_offset += static_cast<uint32_t>(fs::file_size(dir->path()));
+        util::push_int(m_fat, file_offset);
+      }
+    }
+
+
+    util::write_file("fat.bin", m_fat);
+  }
+
+  std::vector<uint8_t> FST::create_main_table(std::string root, bool is_root)
+  {
+    std::vector<uint8_t> main_table;
+
+    //  If this is the true root then add the root table entry
+    if (is_root)
+    {
+      //  Sub table offset starts after all main table entries (8 bytes each) + root (8 bytes)
+      table_offset = total_directories(root, true) * 8 + 8;
+      util::push_int(main_table, table_offset);
+      util::push_int<uint16_t>(main_table, file_id);
+      util::push_int<uint16_t>(main_table, total_directories(root, true) + 1);
+    }
+
+    //  Count every file in the current directory
+    for (fs::directory_iterator dir(root), end; dir != end; ++dir)
+    {
+      table_offset += dir->path().filename().string().length() + 1;
+      std::cout << file_id << "\t" << table_offset << "\t" << dir->path().filename().string() << std::endl;
+      if (fs::is_regular_file(dir->path()))
+      {
+        file_id++;
       }
       else
       {
-        ++file_index;
+        table_offset += 2; // Add 2 for the directory ID
       }
-
-      //  Increase offset by the size this entry would take in the string table
-      table_offset += dir->path().filename().string().length() + 1;
     }
 
-    std::vector<uint8_t> string_table = create_string_table(root);
+    table_offset++; //  Add 1 for the 0 byte ending the sub-table
+
+    //  Go through every sub-directory in the current directory
+    for (fs::directory_iterator dir(root), end; dir != end; ++dir)
+    {
+      if (fs::is_directory(dir->path()))
+      {
+        util::push_int(main_table, table_offset);
+        util::push_int<uint16_t>(main_table, file_id);
+        util::push_int<uint16_t>(main_table, 0xF000 | m_dir_parent[dir->path().parent_path()]);
+
+        std::cout << std::hex << dir->path() << "\t" << table_offset << "\t" << file_id << "\t" << (0xF000 | m_dir_parent[dir->path().parent_path()]) << std::dec << std::endl;
+
+        //  Recursively append contents to the string table
+        auto table = create_main_table(dir->path().string(), false);
+        std::copy(table.begin(), table.end(), std::back_inserter(main_table));
+
+        //file_id += total_files(dir->path().string());
+      }
+    }
+
+    return main_table;
   }
 
   /*
@@ -175,7 +241,7 @@ namespace nds
         util::push(string_table, name);
 
         //  Push back the directory ID and set the MSB to 1 to mark it as a directory
-        util::push_int<uint16_t>(string_table, m_dir_parent[dir->path()].parent() | 0xF000);
+        util::push_int<uint16_t>(string_table, 0xF000 | m_dir_parent[dir->path()]);
       }
     }
 

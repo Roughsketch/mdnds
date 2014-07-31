@@ -106,18 +106,32 @@ namespace nds
     {
       return m_entries;
     }
+
+    inline std::vector<uint8_t> get_fnt()
+    {
+      return m_fnt;
+    }
+
+    inline std::vector<uint8_t> get_fat()
+    {
+      return m_fat;
+    }
+
   private:
     std::vector<uint8_t> m_fat;
     std::vector<uint8_t> m_fnt;
     std::vector<FileEntry> m_entries;
     std::vector<TableEntry> m_table_entries;
+    std::map<boost::filesystem::path, uint16_t> m_dir_parent;
 
+    uint32_t table_offset;
+    uint16_t file_id;
 
-    std::map<boost::filesystem::path, TableEntry> m_dir_parent;
+    std::vector<uint8_t> create_main_table(std::string root, bool is_root = true);
+    std::vector<uint8_t> create_string_table(std::string root);
 
     uint32_t total_files(boost::filesystem::path, bool recurse = false);
     uint32_t total_directories(boost::filesystem::path, bool recurse = false);
-    std::vector<uint8_t> create_string_table(std::string root);
   };
 }
 

@@ -19,6 +19,8 @@ namespace nds
     {
       std::copy(rom.begin(), rom.begin() + Header::Size, std::back_inserter(m_header));
     }
+    
+    std::vector<uint8_t> get_raw();
 
     std::string title();
     std::string game_code();
@@ -66,6 +68,16 @@ namespace nds
     uint32_t size_used();
     uint32_t header_size();
 
+    void set_fnt_offset(uint32_t);
+    void set_fnt_size(uint32_t);
+    void set_fat_offset(uint32_t);
+    void set_fat_size(uint32_t);
+
+    void set_arm9_offset(uint32_t);
+    void set_arm9_overlay_offset(uint32_t);
+    void set_arm7_offset(uint32_t);
+    void set_arm7_overlay_offset(uint32_t);
+
     enum Offset
     {
       Title = 0x00,
@@ -112,6 +124,11 @@ namespace nds
   private:
     std::vector<uint8_t> m_header;
   };
+
+  inline std::vector<uint8_t> Header::get_raw()
+  {
+    return m_header;
+  }
 
   inline std::string Header::title()
   {
@@ -282,6 +299,47 @@ namespace nds
   {
     return util::read<uint32_t>(m_header, Offset::HeaderSize);
   }
+
+  inline void Header::set_fnt_offset(uint32_t value)
+  {
+    util::write_int(m_header, value, Offset::FileTableOffset);
+  }
+
+  inline void Header::set_fnt_size(uint32_t value)
+  {
+    util::write_int(m_header, value, Offset::FileTableSize);
+  }
+
+  inline void Header::set_fat_offset(uint32_t value)
+  {
+    util::write_int(m_header, value, Offset::FileAllocationOffset);
+  }
+
+  inline void Header::set_fat_size(uint32_t value)
+  {
+    util::write_int(m_header, value, Offset::FileAllocationSize);
+  }
+
+  inline void Header::set_arm9_offset(uint32_t value)
+  {
+    util::write_int(m_header, value, Offset::ARM9Rom);
+  }
+
+  inline void Header::set_arm9_overlay_offset(uint32_t value)
+  {
+    util::write_int(m_header, value, Offset::ARM9Overlay);
+  }
+
+  inline void Header::set_arm7_offset(uint32_t value)
+  {
+    util::write_int(m_header, value, Offset::ARM7Rom);
+  }
+
+  inline void Header::set_arm7_overlay_offset(uint32_t value)
+  {
+    util::write_int(m_header, value, Offset::ARM7Overlay);
+  }
+
 }
 
 #endif
