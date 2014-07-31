@@ -321,6 +321,14 @@ namespace util
     insert_int<T>(v, swap_endian<T>(val), offset);
   }
 
+  inline void push(std::vector<uint8_t>& v, std::string val)
+  {
+    for (auto& c : val)
+    {
+      v.push_back(c);
+    }
+  }
+
   template<typename T> inline T pad(T val, uint32_t align)
   {
     return (val % align == 0) ? 0 : align - (val % align);

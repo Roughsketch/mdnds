@@ -5,6 +5,8 @@
 #include <map>
 #include <cstdint>
 
+#include <boost/filesystem.hpp>
+
 #include "nds_header.h"
 #include "util.h"
 
@@ -63,14 +65,29 @@ namespace nds
       return m_offset;
     }
 
+    inline void set_offset(uint32_t value)
+    {
+      m_offset = value;
+    }
+
     inline uint16_t first_id()
     {
       return m_first_id;
     }
 
+    inline void set_first_id(uint32_t value)
+    {
+      m_first_id = value;
+    }
+
     inline uint16_t parent()
     {
       return m_parent_id;
+    }
+
+    inline void set_parent(uint32_t value)
+    {
+      m_parent_id = value;
     }
 
   private:
@@ -83,6 +100,7 @@ namespace nds
   {
   public:
     FST(std::string disc);
+    FST(std::string root, uint32_t offset);
 
     inline std::vector<FileEntry> files()
     {
@@ -93,6 +111,13 @@ namespace nds
     std::vector<uint8_t> m_fnt;
     std::vector<FileEntry> m_entries;
     std::vector<TableEntry> m_table_entries;
+
+
+    std::map<boost::filesystem::path, TableEntry> m_dir_parent;
+
+    uint32_t total_files(boost::filesystem::path, bool recurse = false);
+    uint32_t total_directories(boost::filesystem::path, bool recurse = false);
+    std::vector<uint8_t> create_string_table(std::string root);
   };
 }
 
