@@ -133,6 +133,7 @@ namespace nds
     uint32_t table_offset;
     uint16_t file_id;
 
+    void initialize_directory_table(std::string root, uint32_t index = 1);
     std::vector<uint8_t> create_main_table(std::string root, bool is_root = true);
     void create_allocation_table(std::string root);
     std::vector<uint8_t> create_string_table(std::string root);

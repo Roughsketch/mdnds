@@ -106,30 +106,39 @@ namespace nds
   */
   FST::FST(std::string root, uint32_t fst_offset, uint32_t file_id_offset)
   {
-    //  Offset is FST offset + FNT size + FAT size (total files * size of FAT entry)
-    file_offset = fst_offset + m_fnt.size() + (total_files(root, true) * 8);
-
     file_id = file_id_offset;
+    initialize_directory_table(root);
 
-    uint32_t dir_index = 1;
-
-    for (fs::recursive_directory_iterator dir(root), end; dir != end; ++dir)
-    {
-      if (fs::is_directory(dir->path()))
-      {
-        m_dir_parent[dir->path()] = 0xF000 | dir_index;
-        ++dir_index;
-      }
-    }
-
-    //file_id = 0x67;
     m_fnt = create_main_table(root);
     std::vector<uint8_t> string_table = create_string_table(root);
 
     //  Append string table to the FNT
     std::copy(string_table.begin(), string_table.end(), std::back_inserter(m_fnt));
 
+    //  Offset is FST offset + FNT size + FAT size (total files * size of FAT entry)
+    file_offset = fst_offset + m_fnt.size() + ((file_id_offset + total_files(root, true)) * 8);
+    file_offset += util::pad(file_offset, 0x10);
     create_allocation_table(root);
+  }
+
+  void FST::initialize_directory_table(std::string root, uint32_t index)
+  {
+    for (fs::directory_iterator dir(root), end; dir != end; ++dir)
+    {
+      if (fs::is_directory(dir->path()))
+      {
+        m_dir_parent[dir->path()] = 0xF000 | index;
+        ++index;
+      }
+    }
+
+    for (fs::directory_iterator dir(root), end; dir != end; ++dir)
+    {
+      if (fs::is_directory(dir->path()))
+      {
+        initialize_directory_table(dir->path().string(), index);
+      }
+    }
   }
 
   std::vector<uint8_t> FST::create_main_table(std::string root, bool is_root)

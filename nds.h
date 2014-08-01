@@ -14,6 +14,7 @@ namespace nds
   void extract(std::string disc, std::string dir);
   void extract_file(FileEntry& file, std::string disc, std::string filedir);
   void build(std::string dir, std::string disc);
+  void add_files(std::vector<uint8_t>& rom, std::string root);
   void files(std::string disc);
 
   bool valid_directory(std::string dir);

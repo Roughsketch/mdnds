@@ -106,21 +106,23 @@ namespace nds
         util::push_int(overlay_fat, nds.size() + file.size());  //  End address in ROM
 
         std::copy(file.begin(), file.end(), std::back_inserter(nds));
-        util::pad(nds, util::pad(nds.size(), 0x100), 0xFF);  //  Pad to 0x100 since overlay files must be on a 0x100 mark
+        //util::pad(nds, util::pad(nds.size(), 0x100), 0xFF);  //  Pad to 0x100 since overlay files must be on a 0x100 mark
 
         overlay_count++;
       }
     }
 
+    util::pad(nds, util::pad(nds.size(), 0x1000));  //  Pad to 0x1000 since ARM7 code must be on an even 0x1000 mark
     //  Add ARM7 bin
     header.set_arm7_offset(nds.size());
     std::copy(arm7.begin(), arm7.end(), std::back_inserter(nds));
-    util::pad(nds, util::pad(nds.size(), 0x10));
 
     //  Add ARM7 overlay
-    header.set_arm7_overlay_offset(nds.size());
-    std::copy(arm7_overlay.begin(), arm7_overlay.end(), std::back_inserter(nds));
-    util::pad(nds, util::pad(nds.size(), 0x10));
+    if (arm7_overlay.size() > 0)
+    {
+      header.set_arm7_overlay_offset(nds.size());
+      std::copy(arm7_overlay.begin(), arm7_overlay.end(), std::back_inserter(nds));
+    }
 
     FST fst(filedir, nds.size(), overlay_count);
 
@@ -144,14 +146,7 @@ namespace nds
     //util::pad(nds, util::pad(nds.size(), 0x10));
 
     //  Write all files to the disc
-    for (fs::recursive_directory_iterator dir(filedir), end; dir != end; ++dir)
-    {
-      if (fs::is_regular_file(dir->path()))
-      {
-        auto data = util::read_file(dir->path().string());
-        std::copy(data.begin(), data.end(), std::back_inserter(nds));
-      }
-    }
+    add_files(nds, filedir);
 
     //  Write the header data
     headerbin = header.get_raw();
@@ -160,6 +155,29 @@ namespace nds
     util::pad(nds, util::pad(nds.size(), header.capacity()), 0xFF);
 
     util::write_file(disc, nds);
+  }
+
+  void add_files(std::vector<uint8_t>& rom, std::string root)
+  {
+    for (fs::directory_iterator dir(root), end; dir != end; ++dir)
+    {
+      if (fs::is_regular_file(dir->path()))
+      {
+        std::cout << "Adding " << dir->path().filename().string() << " at offset " << std::hex << rom.size() << std::dec << std::endl;
+        auto data = util::read_file(dir->path().string());
+        std::copy(data.begin(), data.end(), std::back_inserter(rom));
+
+        util::pad(rom, util::pad(rom.size(), 4), 0xFF);
+      }
+    }
+
+    for (fs::directory_iterator dir(root), end; dir != end; ++dir)
+    {
+      if (fs::is_directory(dir->path()))
+      {
+        add_files(rom, dir->path().string());
+      }
+    }
   }
 
   void files(std::string disc)
