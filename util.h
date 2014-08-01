@@ -361,6 +361,18 @@ namespace util
       v.push_back(val);
     }
   }
+
+  template<typename T> inline std::string zero_pad(T value, uint32_t count)
+  {
+    std::string ret = std::to_string(value);
+
+    while (ret.length() < count)
+    {
+      ret = "0" + ret;
+    }
+
+    return ret;
+  }
 };
 
 #endif
