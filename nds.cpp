@@ -84,7 +84,7 @@ namespace nds
     //  Add ARM9 bin
     header.set_arm9_offset(0x4000);
     std::copy(arm9.begin(), arm9.end(), std::back_inserter(nds));
-    util::pad(nds, util::pad(nds.size(), 0x10));
+    util::pad(nds, util::pad(nds.size(), 0x18));
 
     //  Add ARM9 overlay
     header.set_arm9_overlay_offset(nds.size());
@@ -137,7 +137,7 @@ namespace nds
     header.set_fnt_offset(nds.size());
     header.set_fnt_size(fnt.size());
     std::copy(fnt.begin(), fnt.end(), std::back_inserter(nds));
-    util::pad(nds, util::pad(nds.size(), 0x10));
+    util::pad(nds, util::pad(nds.size(), 4));
 
     //  Add FAT
     header.set_fat_offset(nds.size());

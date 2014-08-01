@@ -117,7 +117,7 @@ namespace nds
 
     //  Offset is FST offset + FNT size + FAT size (total files * size of FAT entry)
     file_offset = fst_offset + m_fnt.size() + ((file_id_offset + total_files(root, true)) * 8);
-    file_offset += util::pad(file_offset, 0x10);
+    file_offset += util::pad(file_offset, 4);
     create_allocation_table(root);
   }
 
