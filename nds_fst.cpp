@@ -106,6 +106,9 @@ namespace nds
   */
   FST::FST(std::string root, uint32_t fst_offset)
   {
+    //  Offset is FST offset + FNT size + FAT size (total files * size of FAT entry)
+    file_offset = fst_offset + m_fnt.size() + (total_files(root, true) * 8);
+
     uint32_t dir_index = 1;
 
     for (fs::recursive_directory_iterator dir(root), end; dir != end; ++dir)
@@ -124,23 +127,7 @@ namespace nds
     //  Append string table to the FNT
     std::copy(string_table.begin(), string_table.end(), std::back_inserter(m_fnt));
 
-    util::write_file("fnt.bin", m_fnt);
-
-    //  Offset is FST offset + FNT size + FAT size (total files * size of FAT entry)
-    uint32_t file_offset = fst_offset + m_fnt.size() + (total_files(root, true) * 8);
-
-    for (fs::recursive_directory_iterator dir(root), end; dir != end; ++dir)
-    {
-      if (fs::is_regular_file(dir->path()))
-      {
-        util::push_int(m_fat, file_offset);
-        file_offset += static_cast<uint32_t>(fs::file_size(dir->path()));
-        util::push_int(m_fat, file_offset);
-      }
-    }
-
-
-    util::write_file("fat.bin", m_fat);
+    create_allocation_table(root);
   }
 
   std::vector<uint8_t> FST::create_main_table(std::string root, bool is_root)
@@ -161,7 +148,7 @@ namespace nds
     for (fs::directory_iterator dir(root), end; dir != end; ++dir)
     {
       table_offset += dir->path().filename().string().length() + 1;
-      std::cout << file_id << "\t" << table_offset << "\t" << dir->path().filename().string() << std::endl;
+
       if (fs::is_regular_file(dir->path()))
       {
         file_id++;
@@ -183,17 +170,37 @@ namespace nds
         util::push_int<uint16_t>(main_table, file_id);
         util::push_int<uint16_t>(main_table, 0xF000 | m_dir_parent[dir->path().parent_path()]);
 
-        std::cout << std::hex << dir->path() << "\t" << table_offset << "\t" << file_id << "\t" << (0xF000 | m_dir_parent[dir->path().parent_path()]) << std::dec << std::endl;
-
         //  Recursively append contents to the string table
         auto table = create_main_table(dir->path().string(), false);
         std::copy(table.begin(), table.end(), std::back_inserter(main_table));
-
-        //file_id += total_files(dir->path().string());
       }
     }
 
     return main_table;
+  }
+
+  void FST::create_allocation_table(std::string root)
+  {
+    for (fs::directory_iterator dir(root), end; dir != end; ++dir)
+    {
+      if (fs::is_regular_file(dir->path()))
+      {
+        std::cout << "AT: " << dir->path().filename().string() << std::endl;
+        util::push_int(m_fat, file_offset);
+        file_offset += static_cast<uint32_t>(fs::file_size(dir->path()));
+        util::push_int(m_fat, file_offset);
+
+        file_offset += util::pad(file_offset, 4);
+      }
+    }
+
+    for (fs::directory_iterator dir(root), end; dir != end; ++dir)
+    {
+      if (fs::is_directory(dir->path()))
+      {
+        create_allocation_table(dir->path().string());
+      }
+    }
   }
 
   /*

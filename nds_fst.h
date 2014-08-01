@@ -107,6 +107,11 @@ namespace nds
       return m_entries;
     }
 
+    inline uint16_t start_id()
+    {
+      return util::read<uint16_t>(m_fnt, 4);
+    }
+
     inline std::vector<uint8_t> get_fnt()
     {
       return m_fnt;
@@ -124,10 +129,12 @@ namespace nds
     std::vector<TableEntry> m_table_entries;
     std::map<boost::filesystem::path, uint16_t> m_dir_parent;
 
+    uint32_t file_offset;
     uint32_t table_offset;
     uint16_t file_id;
 
     std::vector<uint8_t> create_main_table(std::string root, bool is_root = true);
+    void create_allocation_table(std::string root);
     std::vector<uint8_t> create_string_table(std::string root);
 
     uint32_t total_files(boost::filesystem::path, bool recurse = false);

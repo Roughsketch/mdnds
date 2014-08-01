@@ -12,11 +12,13 @@ namespace nds
   {
     std::string sysdir = dir + "/sys/";
     std::string filedir = dir + "/files/";
+    std::string overlaydir = dir + "/overlay/";
 
     //  Create the directories required
     boost::filesystem::create_directories(dir);
     boost::filesystem::create_directories(sysdir);
     boost::filesystem::create_directories(filedir);
+    boost::filesystem::create_directories(overlaydir);
 
     Header header(util::read_file(disc, 0x200));
 
@@ -30,6 +32,20 @@ namespace nds
     util::write_file(sysdir + "arm7.bin", util::read_file(disc, header.arm7_size(), header.arm7_rom_offset()));
 
     FST table(disc);
+
+    uint16_t start_id = table.start_id();
+    auto fat = table.get_fat();
+
+    //  Extract all the overlay files
+    for (uint16_t i = 0; i < start_id; i++)
+    {
+      uint32_t start = util::read<uint32_t>(fat, i * 8);
+      uint32_t end = util::read<uint32_t>(fat, i * 8 + 4);
+
+      std::cout << "Writing file: overlay_" << util::zero_pad(i, 4) << std::endl;
+
+      util::write_file(overlaydir + "overlay_" + util::zero_pad(i, 4) + ".bin", util::read_file(disc, end - start, start));
+    }
 
     //  Extract the files
     for (auto& file : table.files())
