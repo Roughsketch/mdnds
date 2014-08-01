@@ -21,20 +21,18 @@ namespace nds
     boost::filesystem::create_directories(overlaydir);
 
     Header header(util::read_file(disc, 0x200));
+    FST table(disc);
+    uint16_t start_id = table.start_id();
+    auto fat = table.get_fat();
 
     //  Extract all the important components that will be put back if re-built
     util::write_file(sysdir + "header.bin", util::read_file(disc, 0x200));
-    util::write_file(sysdir + "fnt.bin", util::read_file(disc, header.file_name_size(), header.file_name_table()));
-    util::write_file(sysdir + "fat.bin", util::read_file(disc, header.file_alloc_size(), header.file_alloc_table()));
+    util::write_file(sysdir + "fnt.bin", table.get_fnt());
+    util::write_file(sysdir + "fat.bin", fat);
     util::write_file(sysdir + "arm9_overlay.bin", util::read_file(disc, header.arm9_overlay_size(), header.arm9_overlay_offset()));
     util::write_file(sysdir + "arm7_overlay.bin", util::read_file(disc, header.arm7_overlay_size(), header.arm7_overlay_offset()));
     util::write_file(sysdir + "arm9.bin", util::read_file(disc, header.arm9_size(), header.arm9_rom_offset()));
     util::write_file(sysdir + "arm7.bin", util::read_file(disc, header.arm7_size(), header.arm7_rom_offset()));
-
-    FST table(disc);
-
-    uint16_t start_id = table.start_id();
-    auto fat = table.get_fat();
 
     //  Extract all the overlay files
     for (uint16_t i = 0; i < start_id; i++)
@@ -71,6 +69,7 @@ namespace nds
   {
     std::string sysdir = dir + "/sys/";
     std::string filedir = dir + "/files/";
+    std::string overlaydir = dir + "/overlay/";
 
     std::vector<uint8_t> nds(0x4000);
 
@@ -90,7 +89,28 @@ namespace nds
     //  Add ARM9 overlay
     header.set_arm9_overlay_offset(nds.size());
     std::copy(arm9_overlay.begin(), arm9_overlay.end(), std::back_inserter(nds));
-    util::pad(nds, util::pad(nds.size(), 0x1000));  //  Pad to 0x1000 since ARM7 bin has to be on an even 0x1000 byte mark
+    util::pad(nds, util::pad(nds.size(), 0x100), 0xFF);  //  Pad to 0x100 since overlay files must be on a 0x100 mark
+
+
+    //  Store the overlay FAT entries separate so we can add them to the real FAT later
+    std::vector<uint8_t> overlay_fat;
+    uint32_t overlay_count = 0;
+
+    for (fs::directory_iterator dir(overlaydir), end; dir != end; ++dir)
+    {
+      if (fs::is_regular_file(dir->path()) && fs::extension(dir->path()) == ".bin")
+      {
+        auto file = util::read_file(dir->path().string());
+
+        util::push_int(overlay_fat, nds.size());                //  Start address in ROM
+        util::push_int(overlay_fat, nds.size() + file.size());  //  End address in ROM
+
+        std::copy(file.begin(), file.end(), std::back_inserter(nds));
+        util::pad(nds, util::pad(nds.size(), 0x100), 0xFF);  //  Pad to 0x100 since overlay files must be on a 0x100 mark
+
+        overlay_count++;
+      }
+    }
 
     //  Add ARM7 bin
     header.set_arm7_offset(nds.size());
@@ -102,10 +122,14 @@ namespace nds
     std::copy(arm7_overlay.begin(), arm7_overlay.end(), std::back_inserter(nds));
     util::pad(nds, util::pad(nds.size(), 0x10));
 
-    FST fst(filedir, nds.size());
+    FST fst(filedir, nds.size(), overlay_count);
 
     std::vector<uint8_t> fnt = fst.get_fnt();
     std::vector<uint8_t> fat = fst.get_fat();
+
+    //  Add overlays to the FAT
+    std::copy(fat.begin(), fat.end(), std::back_inserter(overlay_fat));
+    fat = overlay_fat;
 
     //  Add FNT
     header.set_fnt_offset(nds.size());
@@ -180,6 +204,12 @@ namespace nds
     if (fs::is_directory(root + "/sys") == false)
     {
       std::cout << "Missing directory /sys under " << root << std::endl;
+      ret = false;
+    }
+
+    if (fs::is_directory(root + "/overlay") == false)
+    {
+      std::cout << "Missing directory /overlay under " << root << std::endl;
       ret = false;
     }
 

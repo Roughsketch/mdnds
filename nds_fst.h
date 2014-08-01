@@ -100,7 +100,7 @@ namespace nds
   {
   public:
     FST(std::string disc);
-    FST(std::string root, uint32_t offset);
+    FST(std::string root, uint32_t offset, uint32_t file_id_offset);
 
     inline std::vector<FileEntry> files()
     {

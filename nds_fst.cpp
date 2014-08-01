@@ -104,10 +104,12 @@ namespace nds
       root: The root directory to read files and directories from
       fst_offset: The offset where the start of the FST (FNT) will be in the ROM.
   */
-  FST::FST(std::string root, uint32_t fst_offset)
+  FST::FST(std::string root, uint32_t fst_offset, uint32_t file_id_offset)
   {
     //  Offset is FST offset + FNT size + FAT size (total files * size of FAT entry)
     file_offset = fst_offset + m_fnt.size() + (total_files(root, true) * 8);
+
+    file_id = file_id_offset;
 
     uint32_t dir_index = 1;
 
@@ -185,7 +187,6 @@ namespace nds
     {
       if (fs::is_regular_file(dir->path()))
       {
-        std::cout << "AT: " << dir->path().filename().string() << std::endl;
         util::push_int(m_fat, file_offset);
         file_offset += static_cast<uint32_t>(fs::file_size(dir->path()));
         util::push_int(m_fat, file_offset);
