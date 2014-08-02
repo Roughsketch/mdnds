@@ -111,11 +111,6 @@ namespace nds
     std::vector<uint8_t> overlays;
     overlays.resize(overlay_size);
 
-    std::fill(overlays.begin(), overlays.end(), 0xFF);
-
-    std::cout << std::hex;
-    std::cout << "Overlays size: " << overlay_size << std::endl;
-
     for (fs::directory_iterator dir(overlaydir), end; dir != end; ++dir)
     {
       if (fs::is_regular_file(dir->path()) && fs::extension(dir->path()) == ".bin")
@@ -128,15 +123,11 @@ namespace nds
         util::push_int(overlay_fat, start); //  Start address in ROM
         util::push_int(overlay_fat, end);   //  End address in ROM
 
-        std::cout << start << "\t" << end - start << "\t" << start - nds.size() << "\t" << overlays.size() << std::endl;
-
         std::copy(file.begin(), file.end(), overlays.begin() + (start - nds.size()));
-        //util::pad(nds, util::pad(nds.size(), 0x100), 0xFF);  //  Pad to 0x100 since overlay files must be on a 0x100 mark
 
         overlay_count++;
       }
     }
-    std::cout << std::dec;
 
     std::copy(overlays.begin(), overlays.end(), std::back_inserter(nds));
 

@@ -107,6 +107,7 @@ namespace nds
   FST::FST(std::string root, uint32_t fst_offset, uint32_t file_id_offset)
   {
     file_id = file_id_offset;
+    dir_id = 1;
     initialize_directory_table(root);
 
     m_fnt = create_main_table(root);
@@ -121,22 +122,16 @@ namespace nds
     create_allocation_table(root);
   }
 
-  void FST::initialize_directory_table(std::string root, uint32_t index)
+  void FST::initialize_directory_table(std::string root)
   {
     for (fs::directory_iterator dir(root), end; dir != end; ++dir)
     {
       if (fs::is_directory(dir->path()))
       {
-        m_dir_parent[dir->path()] = 0xF000 | index;
-        ++index;
-      }
-    }
-
-    for (fs::directory_iterator dir(root), end; dir != end; ++dir)
-    {
-      if (fs::is_directory(dir->path()))
-      {
-        initialize_directory_table(dir->path().string(), index);
+        std::cout << dir_id << "\t" << dir->path().string() << std::endl;
+        m_dir_parent[dir->path()] = 0xF000 | dir_id;
+        ++dir_id;
+        initialize_directory_table(dir->path().string());
       }
     }
   }
@@ -177,6 +172,7 @@ namespace nds
     {
       if (fs::is_directory(dir->path()))
       {
+        std::cout << "Parent of " << dir->path().string() << " is " << std::hex << m_dir_parent[dir->path().parent_path()] << std::dec << std::endl;
         util::push_int(main_table, table_offset);
         util::push_int<uint16_t>(main_table, file_id);
         util::push_int<uint16_t>(main_table, 0xF000 | m_dir_parent[dir->path().parent_path()]);
