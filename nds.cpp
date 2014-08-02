@@ -74,6 +74,7 @@ namespace nds
     std::vector<uint8_t> nds(0x4000);
 
     std::vector<uint8_t> headerbin = util::read_file(sysdir + "header.bin", 0x200);
+    std::vector<uint8_t> oldfat = util::read_file(sysdir + "fat.bin");
     std::vector<uint8_t> arm9 = util::read_file(sysdir + "arm9.bin");
     std::vector<uint8_t> arm9_overlay = util::read_file(sysdir + "arm9_overlay.bin");
     std::vector<uint8_t> arm7 = util::read_file(sysdir + "arm7.bin");
@@ -89,30 +90,57 @@ namespace nds
     //  Add ARM9 overlay
     header.set_arm9_overlay_offset(nds.size());
     std::copy(arm9_overlay.begin(), arm9_overlay.end(), std::back_inserter(nds));
-    util::pad(nds, util::pad(nds.size(), 0x100), 0xFF);  //  Pad to 0x100 since overlay files must be on a 0x100 mark
+    //util::pad(nds, util::pad(nds.size(), 0x100), 0xFF);  //  Pad to 0x100 since overlay files must be on a 0x100 mark
+
+    std::cout << "Size: " << nds.size() << std::endl;
 
 
     //  Store the overlay FAT entries separate so we can add them to the real FAT later
     std::vector<uint8_t> overlay_fat;
     uint32_t overlay_count = 0;
+    uint32_t overlay_size = 0;
 
     for (fs::directory_iterator dir(overlaydir), end; dir != end; ++dir)
     {
       if (fs::is_regular_file(dir->path()) && fs::extension(dir->path()) == ".bin")
       {
+        overlay_size += fs::file_size(dir->path());
+      }
+    }
+
+    std::vector<uint8_t> overlays;
+    overlays.resize(overlay_size);
+
+    std::fill(overlays.begin(), overlays.end(), 0xFF);
+
+    std::cout << std::hex;
+    std::cout << "Overlays size: " << overlay_size << std::endl;
+
+    for (fs::directory_iterator dir(overlaydir), end; dir != end; ++dir)
+    {
+      if (fs::is_regular_file(dir->path()) && fs::extension(dir->path()) == ".bin")
+      {
+        uint32_t start = util::read<uint32_t>(oldfat, overlay_count * 8);
+        uint32_t end = util::read<uint32_t>(oldfat, overlay_count * 8 + 4);
+
         auto file = util::read_file(dir->path().string());
 
-        util::push_int(overlay_fat, nds.size());                //  Start address in ROM
-        util::push_int(overlay_fat, nds.size() + file.size());  //  End address in ROM
+        util::push_int(overlay_fat, start); //  Start address in ROM
+        util::push_int(overlay_fat, end);   //  End address in ROM
 
-        std::copy(file.begin(), file.end(), std::back_inserter(nds));
+        std::cout << start << "\t" << end - start << "\t" << start - nds.size() << "\t" << overlays.size() << std::endl;
+
+        std::copy(file.begin(), file.end(), overlays.begin() + (start - nds.size()));
         //util::pad(nds, util::pad(nds.size(), 0x100), 0xFF);  //  Pad to 0x100 since overlay files must be on a 0x100 mark
 
         overlay_count++;
       }
     }
+    std::cout << std::dec;
 
-    util::pad(nds, util::pad(nds.size(), 0x1000));  //  Pad to 0x1000 since ARM7 code must be on an even 0x1000 mark
+    std::copy(overlays.begin(), overlays.end(), std::back_inserter(nds));
+
+    util::pad(nds, util::pad(nds.size(), 0x1000), 0xFF);  //  Pad to 0x1000 since ARM7 code must be on an even 0x1000 mark
     //  Add ARM7 bin
     header.set_arm7_offset(nds.size());
     std::copy(arm7.begin(), arm7.end(), std::back_inserter(nds));
