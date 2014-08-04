@@ -84,6 +84,43 @@ namespace util
     return ret;
   }
 
+  inline void read_file_direct(std::string filename, std::vector<uint8_t>& data, uint32_t vector_offset, size_t count = std::numeric_limits<size_t>::max(), uint32_t file_offset = 0)
+  {
+    FILE *fp = fopen(filename.c_str(), "rb");
+
+    if (!fp)
+    {
+      return;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    size_t size = ftell(fp);
+    rewind(fp);
+
+    if (size == 0)
+    {
+      fclose(fp);
+      return;
+    }
+
+    if (count < size)
+    {
+      size = count;
+    }
+
+    fseek(fp, file_offset, SEEK_SET);
+
+    if (data.size() < vector_offset + size)
+    {
+      data.resize(vector_offset + size);
+    }
+
+    fread(&data[vector_offset], sizeof(uint8_t), size, fp);
+    fclose(fp);
+
+    return;
+  }
+
   inline void write_file(std::string filename, std::vector<uint8_t>& data, uint32_t count = 0)
   {
     FILE *fp = fopen(filename.c_str(), "wb");

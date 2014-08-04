@@ -90,10 +90,6 @@ namespace nds
     //  Add ARM9 overlay
     header.set_arm9_overlay_offset(nds.size());
     std::copy(arm9_overlay.begin(), arm9_overlay.end(), std::back_inserter(nds));
-    //util::pad(nds, util::pad(nds.size(), 0x100), 0xFF);  //  Pad to 0x100 since overlay files must be on a 0x100 mark
-
-    std::cout << "Size: " << nds.size() << std::endl;
-
 
     //  Store the overlay FAT entries separate so we can add them to the real FAT later
     std::vector<uint8_t> overlay_fat;
@@ -104,12 +100,18 @@ namespace nds
     {
       if (fs::is_regular_file(dir->path()) && fs::extension(dir->path()) == ".bin")
       {
-        overlay_size += fs::file_size(dir->path());
+        uint32_t end = util::read<uint32_t>(oldfat, overlay_count * 8 + 4);
+
+        if (overlay_size < end)
+        {
+          overlay_size = end;
+        }
+        overlay_count++;
       }
     }
 
-    std::vector<uint8_t> overlays;
-    overlays.resize(overlay_size);
+    overlay_count = 0;
+    std::vector<uint8_t> overlays(overlay_size - nds.size());
 
     for (fs::directory_iterator dir(overlaydir), end; dir != end; ++dir)
     {
@@ -162,7 +164,6 @@ namespace nds
     header.set_fat_offset(nds.size());
     header.set_fat_size(fat.size());
     std::copy(fat.begin(), fat.end(), std::back_inserter(nds));
-    //util::pad(nds, util::pad(nds.size(), 0x10));
 
     //  Write all files to the disc
     add_files(nds, filedir);
@@ -183,8 +184,10 @@ namespace nds
       if (fs::is_regular_file(dir->path()))
       {
         std::cout << "Adding " << dir->path().filename().string() << " at offset " << std::hex << rom.size() << std::dec << std::endl;
-        auto data = util::read_file(dir->path().string());
-        std::copy(data.begin(), data.end(), std::back_inserter(rom));
+        //auto data = util::read_file(dir->path().string());
+        //std::copy(data.begin(), data.end(), std::back_inserter(rom));
+
+        util::read_file_direct(dir->path().string(), rom, rom.size());
 
         util::pad(rom, util::pad(rom.size(), 4), 0xFF);
       }
