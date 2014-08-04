@@ -1,7 +1,7 @@
 /*
     Originally created by Maiddog <maiddogsrl@gmail.com> 7/23/2014
 
-    GCM v1.0 - 7/20/2014
+    NDS v1.0 - 7/20/2014
     Support for extraction, re-building, and file listing
 
 
@@ -41,7 +41,7 @@
 
 void usage()
 {
-  std::cout << "Usage: nds.exe <Command> <Root> <Output>";
+  std::cout << "Usage: mdnds.exe <Command> <Root> <Output>";
   std::cout << R"DOC(
     <Command>: "build"|"b" or "extract"|"e" or "files"|"f"
     <Root>   : Build: Directory where a disc was previously extracted
@@ -50,8 +50,8 @@ void usage()
     <Output> : Build: Output file path and name
                Extract: Output directory where files will be extracted
     Examples:
-      nds.exe extract Example.nds output_dir
-      nds.exe build output_dir RebuiltExample.nds
+      mdnds.exe extract Example.nds output_dir
+      mdnds.exe build output_dir RebuiltExample.nds
   )DOC" << std::endl;
 }
 
