@@ -85,7 +85,7 @@ namespace nds
     //  Add ARM9 bin
     header.set_arm9_offset(0x4000);
     std::copy(arm9.begin(), arm9.end(), std::back_inserter(nds));
-    util::pad(nds, util::pad(nds.size(), 0x18));
+    util::pad(nds, util::pad(nds.size(), 0x10));
 
     //  Add ARM9 overlay
     header.set_arm9_overlay_offset(nds.size());
