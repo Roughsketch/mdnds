@@ -111,27 +111,33 @@ namespace nds
     }
 
     overlay_count = 0;
-    std::vector<uint8_t> overlays(overlay_size - nds.size());
+    std::vector<uint8_t> overlays;
 
-    for (fs::directory_iterator dir(overlaydir), end; dir != end; ++dir)
+    //  Make sure the vector can be allocated correctly.
+    if (overlay_size > nds.size())
     {
-      if (fs::is_regular_file(dir->path()) && fs::extension(dir->path()) == ".bin")
+      overlays.resize(overlay_size - nds.size());
+
+      for (fs::directory_iterator dir(overlaydir), end; dir != end; ++dir)
       {
-        uint32_t start = util::read<uint32_t>(oldfat, overlay_count * 8);
-        uint32_t end = util::read<uint32_t>(oldfat, overlay_count * 8 + 4);
+        if (fs::is_regular_file(dir->path()) && fs::extension(dir->path()) == ".bin")
+        {
+          uint32_t start = util::read<uint32_t>(oldfat, overlay_count * 8);
+          uint32_t end = util::read<uint32_t>(oldfat, overlay_count * 8 + 4);
 
-        auto file = util::read_file(dir->path().string());
+          auto file = util::read_file(dir->path().string());
 
-        util::push_int(overlay_fat, start); //  Start address in ROM
-        util::push_int(overlay_fat, end);   //  End address in ROM
+          util::push_int(overlay_fat, start); //  Start address in ROM
+          util::push_int(overlay_fat, end);   //  End address in ROM
 
-        std::copy(file.begin(), file.end(), overlays.begin() + (start - nds.size()));
+          std::copy(file.begin(), file.end(), overlays.begin() + (start - nds.size()));
 
-        overlay_count++;
+          overlay_count++;
+        }
       }
-    }
 
-    std::copy(overlays.begin(), overlays.end(), std::back_inserter(nds));
+      std::copy(overlays.begin(), overlays.end(), std::back_inserter(nds));
+    }
 
     util::pad(nds, util::pad(nds.size(), 0x1000), 0xFF);  //  Pad to 0x1000 since ARM7 code must be on an even 0x1000 mark
     //  Add ARM7 bin
